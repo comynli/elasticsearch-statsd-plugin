@@ -193,8 +193,6 @@ public class StatsdReporter {
 		sendGauge(type + ".threads", "peakCount", jvmStats.threads().peakCount());
 
 		// garbage collectors
-		sendCount(type + ".gc", "collectionCount", jvmStats.gc().collectionCount());
-		sendTime(type + ".gc", "collectionTimeSeconds", jvmStats.gc().collectionTime().seconds());
 		for (JvmStats.GarbageCollector collector : jvmStats.gc().collectors()) {
 			String id = type + ".gc." + collector.name();
 			sendCount(id, "collectionCount", collector.collectionCount());

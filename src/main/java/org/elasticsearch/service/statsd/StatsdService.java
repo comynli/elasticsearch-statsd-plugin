@@ -3,7 +3,6 @@ package org.elasticsearch.service.statsd;
 import com.timgroup.statsd.NonBlockingStatsDClient;
 import com.timgroup.statsd.StatsDClient;
 
-import org.elasticsearch.ElasticSearchException;
 import org.elasticsearch.action.admin.cluster.node.stats.NodeStats;
 import org.elasticsearch.action.admin.indices.stats.CommonStatsFlags;
 import org.elasticsearch.cluster.ClusterService;
@@ -22,6 +21,7 @@ import org.elasticsearch.indices.NodeIndicesStats;
 import org.elasticsearch.node.service.NodeService;
 
 import java.util.List;
+import java.util.Map;
 
 public class StatsdService extends AbstractLifecycleComponent<StatsdService>
 {
@@ -54,7 +54,7 @@ public class StatsdService extends AbstractLifecycleComponent<StatsdService>
 	}
 
 	@Override
-	protected void doStart() throws ElasticSearchException
+	protected void doStart()
 	{
 		if (statsdHost != null && statsdHost.length() > 0) {
 			statsdReporterThread = EsExecutors.daemonThreadFactory(settings, "statsd_reporter").newThread(
@@ -69,7 +69,7 @@ public class StatsdService extends AbstractLifecycleComponent<StatsdService>
 	}
 
 	@Override
-	protected void doStop() throws ElasticSearchException
+	protected void doStop()
 	{
 		if (closed) {
 			return;
@@ -82,7 +82,7 @@ public class StatsdService extends AbstractLifecycleComponent<StatsdService>
 	}
 
 	@Override
-	protected void doClose() throws ElasticSearchException
+	protected void doClose()
 	{
 	}
 
@@ -98,7 +98,8 @@ public class StatsdService extends AbstractLifecycleComponent<StatsdService>
 				if (isClusterStarted && node != null && node.isMasterNode()) {
 					NodeIndicesStats nodeIndicesStats = indicesService.stats(false);
 					CommonStatsFlags commonStatsFlags = new CommonStatsFlags().clear();
-					NodeStats nodeStats = nodeService.stats(commonStatsFlags, true, true, true, true, true, true, true, true);
+					NodeStats nodeStats;
+					nodeStats = nodeService.stats(commonStatsFlags, true, true, true, true, true, true, true, true, true);
 					List<IndexShard> indexShards = getIndexShards(indicesService);
 
 					StatsdReporter statsdReporter = new StatsdReporter(nodeIndicesStats, indexShards, nodeStats, statsdClient);
@@ -122,11 +123,9 @@ public class StatsdService extends AbstractLifecycleComponent<StatsdService>
 		private List<IndexShard> getIndexShards(IndicesService indicesService)
 		{
 			List<IndexShard> indexShards = Lists.newArrayList();
-			String[] indices = indicesService.indices().toArray(new String[] {});
-			for (String indexName : indices) {
-				IndexService indexService = indicesService.indexServiceSafe(indexName);
-				for (int shardId : indexService.shardIds()) {
-					indexShards.add(indexService.shard(shardId));
+			for (Map.Entry<String, IndexService> entry: indicesService.indices().entrySet()){
+				for (int shardId : entry.getValue().shardIds()) {
+					indexShards.add(entry.getValue().shard(shardId));
 				}
 			}
 			return indexShards;
